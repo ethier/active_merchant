@@ -446,11 +446,18 @@ module ActiveMerchant #:nodoc:
 
         error_messages = []
         error_codes = []
+        fmf_messages = []
+        fmf_codes    = []
 
         xml = REXML::Document.new(xml)
         if root = REXML::XPath.first(xml, "//#{action}Response")
           root.elements.each do |node|
             case node.name
+            when 'FMFDetails'
+              node.elements.first.each do |child|
+              fmf_codes << child[0].text unless child[0].text.blank?
+              fmf_messages << child[1].text unless child[1].text.blank?
+            end
             when 'Errors'
               short_message = nil
               long_message = nil
@@ -473,8 +480,10 @@ module ActiveMerchant #:nodoc:
               legacy_parse_element(response, node)
             end
           end
-          response[:message] = error_messages.uniq.join(". ") unless error_messages.empty?
-          response[:error_codes] = error_codes.uniq.join(",") unless error_codes.empty?
+          response[:message]      = error_messages.uniq.join(". ") unless error_messages.empty?
+          response[:error_codes]  = error_codes.uniq.join(",") unless error_codes.empty?
+          response[:fmf_messages] = fmf_messages.uniq.join(". ") unless fmf_messages.empty?
+          response[:fmf_codes]    = fmf_codes.uniq.join(",") unless fmf_codes.empty?
         elsif root = REXML::XPath.first(xml, "//SOAP-ENV:Fault")
           legacy_parse_element(response, root)
           response[:message] = "#{response[:faultcode]}: #{response[:faultstring]} - #{response[:detail]}"
